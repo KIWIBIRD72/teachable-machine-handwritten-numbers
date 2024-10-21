@@ -1,36 +1,48 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# About
+<div style="display: flex; align-items: center; gap: 20px;">
+  <img src="assets/example.png" height="500px" />
+  <div>
+  <p>
+    Recognition of handwritten numbers on a canvas drawboard using a trained model on the website
+    <a href="https://teachablemachine.withgoogle.com" target="_blank">Teachable Machine</a>.
+  </p>
 
-## Getting Started
+  **Warning!**
+  Use for educational purposes only, as the model works unstably and frequently makes errors in recognizing symbols. A small number of samples was used for training. There may also be issues with exporting the image from the canvas and providing the handwritten input to the model.
 
-First, run the development server:
+  </div>
+</div>
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+# Get started
+### **Standard project launch**
+1. Install dependencies
+    ```shell
+    npm install
+    ```
+2. Build the project
+    ```shell
+    npm run build
+    ```
+3. Start the project
+    ```shell
+    npm run start
+    ```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### **Launching the project in dev mode**
+1. Install dependencies
+    ```shell
+    npm i
+    ```
+2. Start in dev mode
+    ```shell
+    npm run dev
+    ```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### **In case the character recognition model does not work**
+The project may start and build without errors, but character recognition may not work. This could be because the trained model is loaded via a cloud link in the component `shared/hooks/useModel.ts` (variable `MODEL_PATH`).
 
-## Learn More
+If this happens, you can use local files of the same trained model located in `public/model` (files: `metadata.json`, `model.json`, `weights.bin`).
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### **Create your own model**
+You can create your own model on [Teachable Machine](https://teachablemachine.withgoogle.com)

@@ -1,101 +1,136 @@
-import Image from "next/image";
+"use client";
+
+import { useModel } from "@/shared/hooks/useModel";
+import { useScreenDimensions } from "@/shared/hooks/useScreenDimensions";
+import { IconButton } from "@/shared/ui/IconButton";
+import { CanvasDrawRef, DrawingCanvas } from "@/widget/DrawCanvas";
+import { CustomMobileNet } from "@teachablemachine/image";
+import { Check, Delete, Eraser } from "lucide-react";
+import { useRef, useState } from "react";
+
+const CANVAS_PADDINGS = 16;
+const MIN_PREDICTION_PERCENT = 0.2;
+const MAX_PHONE_NUMBER_LENGTH = 11;
+
+type PredictionRes = Awaited<ReturnType<CustomMobileNet["predict"]>>;
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="https://nextjs.org/icons/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+  const canvasRef = useRef<null | CanvasDrawRef>(null);
+  const dimensions = useScreenDimensions();
+  const model = useModel();
+  const [phoneNumber, setPhoneNumber] = useState("+7");
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="https://nextjs.org/icons/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+  const handleClearCanvas = () => {
+    canvasRef.current?.clear();
+  };
+
+  const getPredictedClass = (predictions: PredictionRes) => {
+    const maxPrediction = predictions.reduce((max, current) => {
+      return current.probability > max.probability ? current : max;
+    });
+
+    if (maxPrediction.probability > MIN_PREDICTION_PERCENT) {
+      return parseInt(maxPrediction.className.split(" ")[1]);
+    } else {
+      return null;
+    }
+  };
+
+  const analyzeNumber = async (image: ImageBitmap) => {
+    const predict = await model?.predict(image);
+
+    if (!predict) return;
+
+    const predictionNumberRes = getPredictedClass(predict);
+
+    if (predictionNumberRes) {
+      setPhoneNumber((state) => {
+        if (state.length > MAX_PHONE_NUMBER_LENGTH) return state;
+        return state + predictionNumberRes;
+      });
+    }
+  };
+
+  const deletePhoneNumber = () => {
+    setPhoneNumber((state) => {
+      if (state === "+7") return "+7";
+      return state.slice(0, -1);
+    });
+  };
+
+  const handleUrlData = async () => {
+    const canvasImgUrl = canvasRef.current?.getDataURL("jpg", true, "#ffffff");
+    if (!canvasImgUrl) return;
+
+    canvasRef.current?.clear();
+
+    const base64Image = canvasImgUrl.split(",")[1]; // Извлекаем только часть данных base64
+
+    // Создаем объект Image
+    const image = new Image();
+    image.src = `data:image/png;base64,${base64Image}`;
+
+    image.onload = function () {
+      // Создаем Canvas для рисования
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
+
+      if (!ctx) return;
+
+      canvas.width = image.width;
+      canvas.height = image.height;
+
+      // Закрашиваем фон выбранным цветом (например, белым)
+      ctx.fillStyle = "white"; // Задайте нужный цвет фона
+      ctx.fillRect(0, 0, canvas.width, canvas.height); // Закрашиваем весь холст
+
+      // Рисуем изображение на Canvas
+      ctx.drawImage(image, 0, 0);
+
+      // Получаем ImageBitmap
+      createImageBitmap(canvas).then(async (imageBitmap) => {
+        analyzeNumber(imageBitmap);
+      });
+    };
+  };
+
+  return (
+    <div className="">
+      <div className="flex w-full items-center justify-center">
+        <DrawingCanvas
+          className="my-[16px] overflow-hidden rounded-3xl border-[3px] border-indigo-800"
+          ref={canvasRef}
+          width={dimensions.width - CANVAS_PADDINGS * 2}
+          height={dimensions.width - CANVAS_PADDINGS * 2}
+        />
+      </div>
+
+      <div className="flex w-full justify-center gap-3">
+        <IconButton onClick={handleClearCanvas} className="bg-yellow-500">
+          <Eraser color="#ffffff" />
+        </IconButton>
+        <IconButton
+          onClick={handleUrlData}
+          disabled={phoneNumber.length >= MAX_PHONE_NUMBER_LENGTH}
+          className={phoneNumber.length >= MAX_PHONE_NUMBER_LENGTH ? "opacity-50" : ""}
+        >
+          <Check color="#ffffff" />
+        </IconButton>
+      </div>
+
+      <div className="flex w-full flex-col items-center justify-center py-10">
+        <h3 className="text-[20px] font-normal">Enter phone number:</h3>
+
+        <div className="!mx-4 flex w-full items-center justify-between">
+          <div className="h-[48px] w-[48px]" />
+
+          <h5 className="line-clamp-1 text-[30px] font-bold">{phoneNumber}</h5>
+
+          <button onClick={deletePhoneNumber} className="p-3">
+            <Delete />
+          </button>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+      </div>
     </div>
   );
 }
